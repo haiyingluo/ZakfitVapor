@@ -11,17 +11,17 @@ import Queues
 import Fluent
 
 struct ProgressCheckJob: AsyncScheduledJob {
-    func run(context: JobContext) async throws {
+    func run(context: QueueContext) async throws {
         let db = context.application.db
 
-        // 1. Récupérer les utilisateurs
+        // 1. Fetch users
         let users = try await UserModel.query(on: db).all()
 
         for user in users {
-            // 2. Calculer les progrès de l'utilisateur
+            // 2. Calculate user progress
             let progress = try await calculateProgress(for: user, on: db)
 
-            // 3. Vérifier si le progrès atteint le seuil de notification
+            // 3. Check if progress reaches notification threshold
             if progress >= 80 {
                 let notificationText = "Bravo ! Vous avez atteint \(progress)% de votre objectif d'activité."
                 let notification = NotificationModel(
@@ -31,16 +31,16 @@ struct ProgressCheckJob: AsyncScheduledJob {
                     userID: try user.requireID()
                 )
 
-                // 4. Enregistrer la notification
+                // 4. Save the notification
                 try await notification.save(on: db)
             }
         }
     }
 
-    // Fonction pour calculer les progrès
+    // Function to calculate progress
     private func calculateProgress(for user: UserModel, on db: Database) async throws -> Int {
         let goalActivities = try await GoalActivityModel.query(on: db)
-            .filter(\.$user.$id == try user.requireID())
+            .filter(\.$user.$id == user.requireID())
             .all()
 
         guard !goalActivities.isEmpty else { return 0 }
@@ -51,3 +51,4 @@ struct ProgressCheckJob: AsyncScheduledJob {
         return (completedGoals * 100) / totalGoals
     }
 }
+
