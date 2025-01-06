@@ -11,14 +11,38 @@ import FluentSQL
 
 
 struct UserController: RouteCollection {
-    func boot(routes: RoutesBuilder) throws {
-        let users = routes.grouped("users") // Route principale
-        users.post(use: create)            // POST /users
-        users.get(use: index)             // GET /users
-
-        users.group(":userID") { user in
-            user.put(use: update)          // PUT /users/:userID
-            user.delete(use: delete)       // DELETE /users/:userID
+//    func boot(routes: RoutesBuilder) throws {
+//        let users = routes.grouped("users") // Route principale
+//        users.post(use: create)            // POST /users
+//        users.get(use: index)             // GET /users
+//
+//        users.group(":userID") { user in
+//            user.put(use: update)          // PUT /users/:userID
+//            user.delete(use: delete)       // DELETE /users/:userID
+//        }
+//    }
+    
+    func boot(routes: any Vapor.RoutesBuilder) throws {
+        let users = routes.grouped("users")
+        users.post(use: create)
+        
+        let authGroupBasic = users.grouped(UserModel.authenticator(), UserModel.guardMiddleware())
+        authGroupBasic.post("login",use: login)
+        
+        let authGroupToken = users.grouped(TokenSession.authenticator(), TokenSession.guardMiddleware())
+        authGroupToken.get(use: index)
+        
+        //http://127.0.0.1:8081/users/byemail/?email=pierre@gmail.com
+        //users.get("byemail", use: self.getUserByEmail)
+        //http://127.0.0.1:8081/users/byemail/pierre@gmail.com
+        authGroupToken.group("byemail") { user in
+            user.get(":email", use: getUserByEmail)
+        }
+        
+        authGroupToken.group("id") { user in
+            user.get(use: getUserById)
+            user.delete(use: delete)
+            user.put(use: update)
         }
     }
 
